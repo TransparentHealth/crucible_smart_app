@@ -1,0 +1,535 @@
+<div class="container-fluid details-server">
+  <div class="row">
+    <div class="col">
+      <div class="container row row-no-padding">
+        <div class="col-9">
+          <div class="server-state-title">FHIR Resource Server</div>
+          <div class="server-state" data-toggle="tooltip" title="<%=instance.url%>">
+            <%=instance.url%>
+          </div>
+        </div>
+        <div class="col-3">
+
+          <!--- not yet implemented -->
+          <div style="display:none" class="client-state-button float-right" data-toggle="tooltip" title="Print Results.">
+            <a href="<%=instance.base_url%>/smart/<%=instance.id%>/print/" class="btn btn-outline-secondary"><span class="oi oi-print" aria-hidden="true"></span></a>
+          </div>
+
+          <div class="client-state-button float-right" data-toggle="tooltip" title="Save link to this test instance.">
+            <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#linkModal">
+              <span class="oi oi-link-intact" aria-hidden="true"></span>
+            </button>
+          </div>
+
+          <div class="client-state-button float-right" data-toggle="tooltip" title="View status of client">
+            <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#stateModal">
+              <span class="oi oi-list" aria-hidden="true"></span>
+              <span id="client-status-button-text">Client Status</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="main main-details">
+    <% unless locals[:error_code].nil? %>
+      <div class="alert alert-danger" role="alert">
+        <% if error_code == 'no_launch' %>
+          The launch URL for this instance was visited, but no sequence was actively running that was waiting for this event.  Please run the EHR launch test
+          before initiating an EHR launch from the server.
+        <% elsif error_code == 'no_redirect' %>
+          The redirect URL for this instance was visited, but no sequence was actively running that was waiting for this event.  Please run the a launch sequence test
+          before visiting this redirect url.
+        <% end %>
+      </div>
+    <% end %>
+    <% if sequence_results.size == 0 %>
+      <div class="alert alert-info" role="alert">
+        <p>
+        You have created a new testing session at <a class="alert-link" href="<%=instance.base_url%>/smart/<%=instance.id%>/"><%=instance.base_url%>/smart/<%=instance.id%>/</a>.
+        Please take note of this URL if you would like to share the results or return to the results of these tests in the future.
+        </p>
+        <p>
+        Start testing by clicking on the <strong><span class="oi oi-media-play"></span> Begin</strong> button next to the
+        Conformance Statement sequence below. This sequence queries the metadata endpoint of the FHIR server for supported features and
+        security configuration information. This information will inform the testing client how to access the necessary endpoints
+        for subsequent tests.
+      </div>
+    <% end %>
+    <% if instance.sequence_results.count == 1 %>
+      <div class="alert alert-info" role="alert">
+        <% if !instance.oauth_authorize_endpoint.nil? && !instance.oauth_token_endpoint.nil? && instance.sequence_results.all?{|s| s.name == 'Conformance'} %>
+         <p>
+           The Conformance Statement sequence was able to extract the OAuth 2.0 endpoints from the conformance statement the FHIR server.
+           You can inspect what was tested by clicking on individual tests within the sequence.  Those tests that have a
+           <span class="oi oi-arrow-thick-right"></span> to the right have made HTTP requests to the server. These requests, and corresponding
+           responses, can show what was communicated between the client and the server.
+         </p>
+         <p>
+           Click on the <strong><span class="oi oi-list"></span> Client Status</strong> button above to see more details about what
+           was extracted from the conformance statement that will be used in subsequent tests.  Click on the
+           <strong><span class="oi oi-action-undo"></span> Rerun</strong> button to attempt the sequence again. Note that only the most recent
+           test results are saved within a sequence.
+         </p>
+         <p>
+         For more information about usage of this application, please visit the
+         <a href="https://github.com/fhir-crucible/crucible_smart_app" class="alert-link" target="_blank">documentation.</a>
+         </p>
+       <% else %>
+         <p>
+         The Conformance Statement sequence was unable to extract the required fields from the metadata endpoint of this FHIR server.
+         You can inspect what happened by clicking on individual tests within the sequence.  Those tests that have a
+         <span class="oi oi-arrow-thick-right"></span> to the right have made HTTP requests to the server. These requests, and corresponding
+         responses, may help identify what occured to cause these tests to fail.
+         </p>
+         <p>
+         You can click on the <strong><span class="oi oi-action-undo"></span> Rerun</strong> button to attempt the sequence again. Only the most recent
+         test results are saved within a sequence.
+         </p>
+      <% end %>
+      </div>
+   <% end %>
+    <div class="sequence-header">
+      Test Sequences
+      <span class="sequence-header-details">
+        <% details_pass = sequence_results.values.map(&:result).count("pass") == SequenceBase.subclasses.reject(&:optional?).count %>
+        <span class="sequence-header-details-big details-pass-<%=details_pass%>"><%= sequence_results.values.select(&:required).map(&:result).count("pass") %></span> of
+        <span class="sequence-header-details-big details-pass-<%=details_pass%>"><%= SequenceBase.subclasses.reject(&:optional?).count %></span>
+        required sequences passed
+      </span>
+    </div>
+    <div class="sequence-table">
+      <% sequences.each do |sequence_class| %>
+        <%= erb(:sequence,{},{instance: instance, sequence_results: sequence_results, sequence_class: sequence_class}) %>
+      <% end %>
+
+      <%= erb(:total_score,{},{instance: instance}) %>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modals -->
+<div class="modal fade" id="ConformanceSequenceSkipModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Skip Capability Test</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="ConformanceSkip">
+        <div class="modal-body">
+          <p>
+            If you want to skip the Conformance sequence, then you are required
+            to manually supply authorization and token endpoints.
+          </p>
+            <div class="form-group">
+              <label for="conformanceAuthorizeEndpoint">OAuth 2.0 Authorize Endpoint</label>
+              <input type="text" class="form-control" name="conformance_authorize_endpoint" id="conformanceAuthorizeEndpoint"  placeholder="https://">
+            </div>
+            <div class="form-group">
+              <label for="conformanceAuthorizeEndpoint">OAuth 2.0 Token Endpoint</label>
+              <input type="text" class="form-control" name="conformance_token_endpoint" id="conformanceTokenEndpoint"  placeholder="https://">
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="DynamicRegistrationModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">OAuth 2.0 Dynamic Client Registration</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="DynamicRegistration">
+        <div class="modal-body">
+          <p>
+            Enter the dynamic registration details.
+          </p>
+          <div class="form-group">
+            <label for="registration_url">Registration URL</label>
+            <input type="text" class="form-control" name="registration_url" id="registration_url" value="<%= instance.oauth_register_endpoint %>" required>
+          </div>
+          <div class="form-group">
+            <label for="client_name">Client Name</label>
+            <input type="text" class="form-control" name="client_name" id="client_name" value="Crucible SMART-on-FHIR Test App" required>
+          </div>
+          <div class="form-group">
+            <label for="initiate_login_uri">Launch URI</label>
+            <input readonly type="text" class="form-control" name="initiate_login_uri" id="initiate_login_uri" value="<%=request.base_url%>/smart/<%=instance.id%>/<%=instance.client_endpoint_key%>/launch">
+          </div>
+          <div class="form-group">
+            <label for="redirect_uris">Redirect URI</label>
+            <input readonly type="text" class="form-control" name="redirect_uris" id="redirect_uris" value="<%=request.base_url%>/smart/<%=instance.id%>/<%=instance.client_endpoint_key%>/redirect">
+          </div>
+          <div class="form-group">
+            <label for="scope">Scopes</label>
+            <input type="text" class="form-control" name="scope" id="scope" value="<%=instance.scopes || DEFAULT_SCOPES %>" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Register</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="DynamicRegistrationSkipModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Skip Dynamic Registration</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="dynamic_registration_skip">
+        <div class="modal-body">
+          <p>
+            Please register your application with the following information:
+          </p>
+          <div class="form-group">
+            <label for="skip_launch">Launch URL</label>
+            <input id="skip_launch" name="skip_launch" readonly type="text" class="form-control" value="<%=request.base_url%>/smart/<%=instance.id%>/<%=instance.client_endpoint_key%>/launch">
+          </div>
+          <div class="form-group">
+            <label for="skip_redirect">Redirect URL</label>
+            <input id="skip_redirect" name="skip_redirect" readonly type="text" class="form-control" value="<%=request.base_url%>/smart/<%=instance.id%>/<%=instance.client_endpoint_key%>/redirect">
+          </div>
+          <div class="form-group">
+            <label for="token_endpoint_auth_method">Token Endpoint Authorization Method</label>
+            <input readonly type="text" class="form-control" name="token_endpoint_auth_method" id="token_endpoint_auth_method" value="none">
+          </div>
+          <div class="form-group">
+            <label for="grant_types">Grant Type</label>
+            <input readonly type="text" class="form-control" name="grant_types" id="grant_types" value="authorization_code" required>
+          </div>
+          <div class="form-group">
+            <label for="scope">Scopes</label>
+            <input type="text" class="form-control" name="scope" id="scope" value="<%= DEFAULT_SCOPES %>" required>
+          </div>
+          <div class="form-group">
+            <label for="dynamicRegistrationClientId">Enter Client Id</label>
+            <input type="text" class="form-control" name="client_id" id="dynamicRegistrationClientId" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Skip Dynamic Registration</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="PatientStandaloneLaunchModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Patient Standalone Launch</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="PatientStandaloneLaunch">
+        <div class="modal-body">
+          <p>
+            Enter the desired authorization scopes. Ensure your app registration included these scopes.
+          </p>
+          <div class="form-group">
+            <label for="patientStandaloneLaunchScopes">Scopes</label>
+            <input type="text" class="form-control" name="scopes" id="patientStandaloneLaunchScopes" value="<%=instance.scopes || DEFAULT_SCOPES %>" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Run Standalone Launch</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="ProviderEHRLaunchModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Provider EHR Launch</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="ProviderEHRLaunch">
+        <div class="modal-body">
+          <p>
+            Enter the desired authorization scopes. Ensure your app registration included these scopes.
+          </p>
+          <div class="form-group">
+            <label for="patientStandaloneLaunchScopes">Scopes</label>
+            <input type="text" class="form-control" name="scopes" id="providerEHRLaunchScopes" value="<%=instance.scopes || DEFAULT_SCOPES %>" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Run EHR Launch</button>
+          </div>
+        </div>
+      </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="TokenIntrospectionSkipModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Skip Token Introspection Test</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="TokenIntrospectionSkip">
+        <div class="modal-body">
+          <p>
+            By skipping the OAuth 2.0 Token Introspection test, you are confirming that the user is
+            authorized for at least three months.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Manually Confirm Authorization Period</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<% waiting_on_sequence = instance.waiting_on_sequence %>
+<% unless waiting_on_sequence.nil? %>
+  <% redirect_to = "#{request.base_url}/smart/#{instance.id}/#{instance.client_endpoint_key}/#{waiting_on_sequence.wait_at_endpoint}" %>
+  <div class="modal fade" id="WaitModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" data-show="true" data-backdrop="static">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">Waiting at <strong><%= waiting_on_sequence.wait_at_endpoint.upcase %></strong> URL</h5>
+        </div>
+        <div class="modal-body">
+          <p>
+          Waiting for server to send client browser to <strong><%= waiting_on_sequence.wait_at_endpoint.upcase %></strong> URL:
+          </p>
+          <textarea class="form-control" rows=1 readonly><%=redirect_to %></textarea>
+          <div class="modal-footer">
+            <a href="<%= "#{request.base_url}/smart/#{instance.id}/" %>" class="btn btn-secondary">Close</a>
+            <a href="<%= "#{request.base_url}/smart/#{instance.id}/sequence_result/#{waiting_on_sequence.id}/cancel" %>" class="btn btn-danger">Cancel Sequence</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<div class="modal fade" id="stateModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Current Application State</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <%= erb(:state_status, {}, {instance: instance}) %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="testResultDetailsModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="TokenIntrospectionModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Introspection Launch</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="TokenIntrospection">
+        <div class="modal-body">
+          <p>
+            Enter the introspection data
+          </p>
+          <div class="form-group">
+            <label for="access_token">Access Token</label>
+            <input type="text" class="form-control" name="access_token" id="access_token" value="<%= instance.token %>" required>
+          </div>
+          <div class="form-group">
+            <label for="oauth_introspection_endpoint">Introspection URL</label>
+            <input type="text" class="form-control" name="oauth_introspection_endpoint" id="oauth_introspection_endpoint" value="<%= instance.oauth_introspection_endpoint %>" required>
+          </div>
+          <div class="form-group">
+            <label for="client_name">Resource ID (defaults to client ID but may be different)</label>
+            <input type="text" class="form-control" name="resource_id" id="resource_id" value="<%= !instance.resource_id.nil? ? instance.resource_id : instance.client_id %>" required>
+          </div>
+          <div class="form-group">
+            <label for="client_name">Resource Secret (defaults to client secret but may be different)</label>
+            <input type="text" class="form-control" name="resource_secret" id="resource_secret" value="<%= instance.resource_secret %>" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Run Introspection Test</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="ArgonautDataQueryModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Argonaut Query Server</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="ArgonautDataQuery">
+        <div class="modal-body">
+          <p>
+          This sequence will perform queries in accordance with the Argonaut Data Query Server Guide.
+          </p>
+          <div class="form-group">
+            <label for="registration_url">Supported Resources</label>
+            <div class="form-row">
+              <% instance.supported_resources.in_groups(3) do |group| %>
+                <div class="col">
+                  <% group.each do |resource| %>
+                    <% next if resource.nil? %>
+                    <div class="form-check">
+                      <input class="form-check-input"
+                             type="checkbox"
+                             id="resource_supported_<%=resource.resource_type %>"
+                             name="resource_supported_<%=resource.resource_type %>"
+                             <% if resource.supported %>checked<%end%>
+                             disabled>
+                      <label class="form-check-label" for="resource_supported_<%=resource.resource_type %>">
+                        <%= resource.resource_type %>
+                      </label>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="registration_url">Patient ID</label>
+            <input type="text" class="form-control" name="patient_id" id="patient_id" value="<%= instance.patient_id %>" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Run Tests</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="ArgonautProfilesModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Argonaut Data Profiles</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="ArgonautProfiles">
+        <div class="modal-body">
+          <p>
+          This sequence will check the following resources returned by the Argonaut Query Sequence against
+          the relevant Argonaut profile.
+          </p>
+          <% if instance.resource_references.count > 0 %>
+            <!-- <h4>Authorized Resources</h4> -->
+            <%instance.resource_references.map(&:resource_type).uniq.each do |resource_type| %>
+              <div class="form-group row">
+                <label class="col-sm-3 col-form-label"><%=resource_type %></label>
+                <div class="col-sm-9">
+                  <texatarea class="form-control" rows=3 readonly><%=instance.resource_references.select{|r| r.resource_type == resource_type}.map(&:resource_id).join(', ') %></textarea>
+                </div>
+              </div>
+            <% end %>
+          <% end %>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Run Tests</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="linkModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Bookmark or Share Results</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>
+          The results recorded during this testing session can be accessed at the following URI.
+          Please save this URI if you would like to revisit these results, as this secret URI will not be published.
+          </p>
+          <input type="text" class="form-control" value="<%=instance.base_url%>/smart/<%=instance.id%>/" readonly="readonly">
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="testsRunningModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Tests Running</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form method="POST" action="TokenIntrospection">
+        <div class="modal-body">
+          Tests are currently running <span class="number-complete"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
