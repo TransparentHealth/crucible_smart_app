@@ -14,7 +14,7 @@ config_file './config.yml'
 
 OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE if settings.disable_verify_peer
 
-DEFAULT_SCOPES = 'launch launch/patient online_access openid profile user/*.* patient/*.*'
+DEFAULT_SCOPES = settings.default_scopes
 
 DataMapper::Logger.new($stdout, :debug) if settings.environment == :development
 DataMapper::Model.raise_on_save_failure = true
@@ -29,8 +29,6 @@ require './lib/sequence_base'
 end
 
 require './lib/version'
-
-#TODO clean up database stuff
 
 DataMapper.finalize
 
@@ -60,6 +58,9 @@ helpers do
   end
   def tls_testing_supported?
     TlsTester.testing_supported?
+  end
+  def show_tutorial
+    settings.show_tutorial
   end
 end
 
@@ -219,13 +220,13 @@ end
 
 post '/smart/:id/PatientStandaloneLaunch/?' do
   @instance = TestingInstance.get(params[:id])
-  @instance.update(scopes: params['scopes'], id_token: nil)
+  @instance.update(scopes: params['scopes'], id_token: nil, refresh_token: nil)
   redirect "/smart/#{params[:id]}/PatientStandaloneLaunch/"
 end
 
 post '/smart/:id/ProviderEHRLaunch/?' do
   @instance = TestingInstance.get(params[:id])
-  @instance.update(scopes: params['scopes'], id_token: nil)
+  @instance.update(scopes: params['scopes'], id_token: nil, refresh_token: nil)
   redirect "/smart/#{params[:id]}/ProviderEHRLaunch/"
 end
 

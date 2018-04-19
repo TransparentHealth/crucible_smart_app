@@ -1,3 +1,9 @@
+# Name of app
+app_name: Inferno - SMART on FHIR Testing
+
+# Show or hide tutorials
+show_tutorial: true
+
 # Useful during development to purge the database on each reload
 purge_database_on_reload: false
 
@@ -11,3 +17,6 @@ bind: '0.0.0.0'
 
 # Skip TLS tests
 disable_tls_tests: false
+
+# Default scopes
+default_scopes: launch launch/patient offline_access openid profile user/*.* patient/*.*

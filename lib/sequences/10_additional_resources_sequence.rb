@@ -2,15 +2,15 @@ class AdditionalResourcesSequence < SequenceBase
 
   title 'Additional Resources'
 
-  description 'The FHIR server properly follows the Argonaut Data Query Implementation Guide Server.'
+  description 'Verify additional non-Argonaut resource requirements.'
 
-  preconditions 'Client must be authorized.' do
+  preconditions 'Client must be authorized' do
     !@instance.token.nil?
   end
 
-  test 'Composition search without authorization',
-          'https://www.hl7.org/fhir/DSTU2/composition.html',
-          'Additional Composition resource requirement' do
+  test 'Server rejects Composition search without authorization',
+          '',
+          'Additional Composition resource requirement.' do
 
     @client.set_no_auth
     reply = get_resource_by_params(FHIR::DSTU2::Composition, {patient: @instance.patient_id})
@@ -19,9 +19,9 @@ class AdditionalResourcesSequence < SequenceBase
 
   end
 
-  test 'Composition search by patient',
-          'https://www.hl7.org/fhir/DSTU2/composition.html',
-          'Additional Composition resource requirement',
+  test 'Server returns expected results from Composition search by patient',
+          '',
+          'Additional Composition resource requirement.',
           :optional do
 
     reply = get_resource_by_params(FHIR::DSTU2::Composition, {patient: @instance.patient_id})
@@ -30,41 +30,43 @@ class AdditionalResourcesSequence < SequenceBase
 
   end
 
-  test 'Composition search by patient + type',
-          'https://www.hl7.org/fhir/DSTU2/composition.html',
-          'Additional Composition resource requirement',
+  test 'Server returns expected results from Composition search by patient + type',
+          '',
+          'Additional Composition resource requirement.',
           :optional do
 
     assert !@composition.nil?, 'Expected valid DSTU2 Composition resource to be present'
-    type = @composition.try(:type)
+    type = @composition.try(:type).try(:coding).try(:first).try(:code)
     assert !type.nil?, "Composition type not returned"
     reply = get_resource_by_params(FHIR::DSTU2::Composition, {patient: @instance.patient_id, type: type})
     validate_search_reply(FHIR::DSTU2::Composition, reply)
 
   end
 
-  test 'Composition search by patient + period',
-          'https://www.hl7.org/fhir/DSTU2/composition.html',
-          'Additional Composition resource requirement',
+  test 'Server returns expected results from Composition search by patient + period',
+          '',
+          'Additional Composition resource requirement.',
           :optional do
 
     assert !@composition.nil?, 'Expected valid DSTU2 Composition resource to be present'
-    period = @composition.try(:event).try(:first).try(:period)
+    period = @composition.try(:event).try(:first).try(:period).try(:start)
+    period ||= @composition.try(:event).try(:first).try(:period).try(:end)
     assert !period.nil?, "Composition period not returned"
     reply = get_resource_by_params(FHIR::DSTU2::Composition, {patient: @instance.patient_id, period: period})
     validate_search_reply(FHIR::DSTU2::Composition, reply)
 
   end
 
-  test 'Composition search by patient + type + period',
-          'https://www.hl7.org/fhir/DSTU2/composition.html',
-          'Additional Composition resource requirement',
+  test 'Server returns expected results from Composition search by patient + type + period',
+          '',
+          'Additional Composition resource requirement.',
           :optional do
 
     assert !@composition.nil?, 'Expected valid DSTU2 Composition resource to be present'
-    type = @composition.try(:type)
+    type = @composition.try(:type).try(:coding).try(:first).try(:code)
     assert !type.nil?, "Composition type not returned"
-    period = @composition.try(:event).try(:first).try(:period)
+    period = @composition.try(:event).try(:first).try(:period).try(:start)
+    period ||= @composition.try(:event).try(:first).try(:period).try(:end)
     assert !period.nil?, "Composition period not returned"
     reply = get_resource_by_params(FHIR::DSTU2::Composition, {patient: @instance.patient_id, type: type, period: period})
     validate_search_reply(FHIR::DSTU2::Composition, reply)
@@ -72,8 +74,8 @@ class AdditionalResourcesSequence < SequenceBase
   end
 
   test 'Composition read resource supported',
-          'https://www.hl7.org/fhir/DSTU2/composition.html',
-          'Additional Composition resource requirement',
+          '',
+          'Additional Composition resource requirement.',
           :optional do
 
     validate_read_reply(@composition, FHIR::DSTU2::Composition)
@@ -81,8 +83,8 @@ class AdditionalResourcesSequence < SequenceBase
   end
 
   test 'Composition history resource supported',
-          'https://www.hl7.org/fhir/DSTU2/composition.html',
-          'Additional Composition resource requirement',
+          '',
+          'Additional Composition resource requirement.',
           :optional do
 
     validate_history_reply(@composition, FHIR::DSTU2::Composition)
@@ -90,8 +92,8 @@ class AdditionalResourcesSequence < SequenceBase
   end
 
   test 'Composition vread resource supported',
-          'https://www.hl7.org/fhir/DSTU2/composition.html',
-          'Additional Composition resource requirement',
+          '',
+          'Additional Composition resource requirement.',
           :optional do
 
     validate_vread_reply(@composition, FHIR::DSTU2::Composition)
@@ -100,7 +102,7 @@ class AdditionalResourcesSequence < SequenceBase
 
   test 'Composition resource contains section text',
           '',
-          'Additional Composition resource requirement' do
+          'Additional Composition resource requirement.' do
 
     assert !@composition.nil?, 'Expected valid DSTU2 Composition resource to be present'
     assert @composition.is_a?(FHIR::DSTU2::Composition), 'Expected resource to be valid DSTU2 Composition'
@@ -109,9 +111,9 @@ class AdditionalResourcesSequence < SequenceBase
 
   end
 
-  test 'Provenance search without authorization',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement' do
+  test 'Server rejects Provenance search without authorization',
+          '',
+          'Additional Provenance resource requirement.' do
 
     @client.set_no_auth
     reply = get_resource_by_params(FHIR::DSTU2::Provenance, {patient: @instance.patient_id})
@@ -120,9 +122,9 @@ class AdditionalResourcesSequence < SequenceBase
 
   end
 
-  test 'Provenance search by patient',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+  test 'Server returns expected results from Provenance search by patient',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     reply = get_resource_by_params(FHIR::DSTU2::Provenance, {patient: @instance.patient_id})
@@ -131,22 +133,23 @@ class AdditionalResourcesSequence < SequenceBase
 
   end
 
-  test 'Provenance search by patient + target',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+  test 'Server returns expected results from Provenance search by patient + target',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     assert !@provenance.nil?, 'Expected valid DSTU2 Provenance resource to be present'
-    target = @provenance.try(:target)
+    target = @provenance.try(:target).try(:first).try(:reference)
+    target = target.split('/')[-1] if target.include?('/')
     assert !target.nil?, "Provenance target not returned"
     reply = get_resource_by_params(FHIR::DSTU2::Provenance, {patient: @instance.patient_id, target: target})
     validate_search_reply(FHIR::DSTU2::Provenance, reply)
 
   end
 
-  test 'Provenance search by patient + start + end',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+  test 'Server returns expected results from Provenance search by patient + start + end',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     assert !@provenance.nil?, 'Expected valid DSTU2 Provenance resource to be present'
@@ -159,13 +162,14 @@ class AdditionalResourcesSequence < SequenceBase
 
   end
 
-  test 'Provenance search by patient + target + start + end',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+  test 'Server returns expected results from Provenance search by patient + target + start + end',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     assert !@provenance.nil?, 'Expected valid DSTU2 Provenance resource to be present'
-    target = @provenance.try(:target)
+    target = @provenance.try(:target).try(:first).try(:reference)
+    target = target.split('/')[-1] if target.include?('/')
     assert !target.nil?, "Provenance target not returned"
     periodStart = @provenance.try(:period).try(:start)
     assert !periodStart.nil?, "Provenance period start not returned"
@@ -176,26 +180,27 @@ class AdditionalResourcesSequence < SequenceBase
 
   end
 
-  test 'Provenance search by userid',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+  test 'Server returns expected results from Provenance search by userid',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     assert !@provenance.nil?, 'Expected valid DSTU2 Provenance resource to be present'
-    userid = @provenance.try(:agent).try(:first).try(:userId)
+    userid = @provenance.try(:agent).try(:first).try(:userId).try(:value)
     assert !userid.nil?, "Provenance agent userId not returned"
     reply = get_resource_by_params(FHIR::DSTU2::Provenance, {userid: userid})
     validate_search_reply(FHIR::DSTU2::Provenance, reply)
 
   end
 
-  test 'Provenance search by agent',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+  test 'Server returns expected results from Provenance search by agent',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     assert !@provenance.nil?, 'Expected valid DSTU2 Provenance resource to be present'
-    actor = @provenance.try(:agent).try(:first).try(:actor)
+    actor = @provenance.try(:agent).try(:first).try(:actor).try(:reference)
+    actor = actor.split('/')[-1] if actor.include?('/')
     assert !actor.nil?, "Provenance agent actor not returned"
     reply = get_resource_by_params(FHIR::DSTU2::Provenance, {agent: actor})
     validate_search_reply(FHIR::DSTU2::Provenance, reply)
@@ -203,8 +208,8 @@ class AdditionalResourcesSequence < SequenceBase
   end
 
   test 'Provenance read resource supported',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     validate_read_reply(@provenance, FHIR::DSTU2::Provenance)
@@ -212,8 +217,8 @@ class AdditionalResourcesSequence < SequenceBase
   end
 
   test 'Provenance history resource supported',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     validate_history_reply(@provenance, FHIR::DSTU2::Provenance)
@@ -221,8 +226,8 @@ class AdditionalResourcesSequence < SequenceBase
   end
 
   test 'Provenance vread resource supported',
-          'https://www.hl7.org/fhir/DSTU2/provenance.html',
-          'Additional Provenance resource requirement',
+          '',
+          'Additional Provenance resource requirement.',
           :optional do
 
     validate_vread_reply(@provenance, FHIR::DSTU2::Provenance)
